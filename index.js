@@ -1,6 +1,7 @@
 'use strict';
 
 const async = require('async');
+const deepPluck = require('deep-pluck-ref');
 const rest = require('restler');
 const sinon = require('sinon');
 const snapshotIt = require('snap-shot-it');

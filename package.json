@@ -39,6 +39,7 @@
   "homepage": "https://github.com/ZacharyRSmith/test-mongoose-utils#readme",
   "dependencies": {
     "async": "^2.6.0",
+    "deep-pluck-ref": "^1.2.0",
     "restler": "^3.4.0",
     "sinon": "^4.1.3",
     "snap-shot-it": "^4.0.1"
