@@ -1,0 +1,46 @@
+{
+  "name": "test-mongoose-utils",
+  "version": "0.1.0",
+  "description": "Test utils using mongoose.",
+  "main": "index.js",
+  "scripts": {
+    "flow": "flow",
+    "flow-typed": "flow-typed",
+    "lint": "eslint **/*.js",
+    "its-all-flowy": "npm run lint; npm run flow; npm run test; depcheck",
+    "COMMENT": "--- TEST RELATED TASKS FOLLOW ---",
+    "coverage": "npm test -- --coverage",
+    "test:list": "npm test -- --listTests",
+    "test": "NODE_ENV=TEST jest --",
+    "test:watch": "NODE_ENV=TEST jest --watch --"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZacharyRSmith/test-mongoose-utils.git"
+  },
+  "keywords": [
+    "async",
+    "chai",
+    "mocha",
+    "mongo",
+    "mongoose",
+    "rest",
+    "restler",
+    "sinon",
+    "snapshot",
+    "test",
+    "utils"
+  ],
+  "author": "@ZacharyRSmith <ZacharySmith4989@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ZacharyRSmith/test-mongoose-utils/issues"
+  },
+  "homepage": "https://github.com/ZacharyRSmith/test-mongoose-utils#readme",
+  "dependencies": {
+    "async": "^2.6.0",
+    "restler": "^3.4.0",
+    "sinon": "^4.1.3",
+    "snap-shot-it": "^4.0.1"
+  }
+}
