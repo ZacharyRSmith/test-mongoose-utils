@@ -20,7 +20,11 @@ class TestHelper {
   }
 
   assertChanges({ act, expectedChanges }/*: {
-    act: AsyncFunctionT, expectedChanges: { db: { counts: Expectation[], wasMutated: ModelwasMutated[] } }
+    act: AsyncFunctionT,
+    expectedChanges: {
+      db: { counts: Expectation[], wasMutated: ModelwasMutated[] },
+      retry?: { interval: number, times: number }
+    }
   } */, mainCb/*: CbT */) {
     const getCt = ([Model, query], cb) => Model.count(query, cb);
     const getNewStates = ({ }, cb) => {
@@ -45,28 +49,37 @@ class TestHelper {
       act: ['origStates', (results, cb) => act(cb)],
       newStates: ['act', (results, cb) => getNewStates({}, cb)],
       _assertChanges: ['newStates', ({ origStates, newStates }, cb) => {
-        async.parallel([
-          cb2 => {
-            if (!expectedChanges.db.wasMutated) return void cb2(null);
-            this.assertMutationState(expectedChanges.db.wasMutated, cb2);
-          },
-          cb2 => {
-            if (!expectedChanges.db.counts) return void cb2(null);
-            const chs = origStates.counts.map((origCt, i) => newStates.counts[i] - origCt);
-            const fails = chs.reduce((memo, ch, i) => {
-              const { modelName } = expectedChanges.db.counts[i][0];
-              const query = JSON.stringify(expectedChanges.db.counts[i][1]);
-              const expectedCh = expectedChanges.db.counts[i][2];
-              if (ch === expectedCh) return memo;
-              return memo.concat(
-                `Expected ${modelName}.count(${query}) to change by '${expectedCh}' instead of '${ch}'.`
-              );
-            }, []);
+        const { interval, times } = expectedChanges.retry || {};
+        const _assertChanges = ({}, _assertChangesMainCb) => {
+          async.parallel([
+            cb2 => {
+              if (!expectedChanges.db.wasMutated) return void cb2(null);
+              this.assertMutationState(expectedChanges.db.wasMutated, cb2);
+            },
+            cb2 => {
+              if (!expectedChanges.db.counts) return void cb2(null);
+              const chs = origStates.counts.map((origCt, i) => newStates.counts[i] - origCt);
+              const fails = chs.reduce((memo, ch, i) => {
+                const { modelName } = expectedChanges.db.counts[i][0];
+                const query = JSON.stringify(expectedChanges.db.counts[i][1]);
+                const expectedCh = expectedChanges.db.counts[i][2];
+                if (ch === expectedCh) return memo;
+                return memo.concat(
+                  `Expected ${modelName}.count(${query}) to change by '${expectedCh}' instead of '${ch}'.`
+                );
+              }, []);
 
-            if (fails.length) return void cb2(new Error(fails.join('\n')));
-            cb2(null);
-          }
-        ], cb);
+              if (fails.length) return void cb2(new Error(fails.join('\n')));
+              cb2(null);
+            }
+          ], _assertChangesMainCb);
+        };
+
+        async.retry(
+          { interval: interval || 1, times: times || 1 },
+          cb2 => _assertChanges({}, cb2),
+          cb
+        );
       }]
     }, mainCb);
   }

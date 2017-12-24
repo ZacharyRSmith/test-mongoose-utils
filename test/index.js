@@ -120,4 +120,18 @@ describe('index', () => {
       }
     }, done);
   });
+
+  it('allows for retry', done => {
+    const t = new Todo();
+    tmu.assertChanges({
+      act: cb => {
+        setTimeout(() => t.save(), 1000); // Save might not persist due to schema validationErr.
+        setImmediate(() => cb(null));
+      },
+      expectedChanges: {
+        db: { wasMutated: [[Todo, true]] },
+        retry: { interval: 100, times: 15 }
+      }
+    }, done);
+  });
 });
