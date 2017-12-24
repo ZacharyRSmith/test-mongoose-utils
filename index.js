@@ -11,6 +11,31 @@ const rmDeep = (obj, props) => {
 	refs.map(ref => void props.forEach(p => void delete ref[p] ));
 };
 
+function _assertChanges({ expectedChanges, newStates, origStates }, mainCb) {
+  async.parallel([
+    cb => {
+      if (!expectedChanges.db.wasMutated) return void cb(null);
+      this.assertMutationState(expectedChanges.db.wasMutated, cb);
+    },
+    cb => {
+      if (!expectedChanges.db.counts) return void cb(null);
+      const chs = origStates.counts.map((origCt, i) => newStates.counts[i] - origCt);
+      const fails = chs.reduce((memo, ch, i) => {
+        const { modelName } = expectedChanges.db.counts[i][0];
+        const query = JSON.stringify(expectedChanges.db.counts[i][1]);
+        const expectedCh = expectedChanges.db.counts[i][2];
+        if (ch === expectedCh) return memo;
+        return memo.concat(
+          `Expected ${modelName}.count(${query}) to change by '${expectedCh}' instead of '${ch}'.`
+        );
+      }, []);
+
+      if (fails.length) return void cb(new Error(fails.join('\n')));
+      cb(null);
+    }
+  ], mainCb);
+};
+
 /*:: type Expectation = [MongooseModelT, MongooseQueryT, number]; */
 /*:: type ModelwasMutated = [MongooseModelT, bool]; */
 class TestHelper {
@@ -47,39 +72,18 @@ class TestHelper {
     async.auto({
       origStates: getOrigStates,
       act: ['origStates', (results, cb) => act(cb)],
-      newStates: ['act', (results, cb) => getNewStates({}, cb)],
-      _assertChanges: ['newStates', ({ origStates, newStates }, cb) => {
+      _assertChanges: ['act', ({ origStates }, cb) => {
         const { interval, times } = expectedChanges.retry || {};
-        const _assertChanges = ({}, _assertChangesMainCb) => {
-          async.parallel([
-            cb2 => {
-              if (!expectedChanges.db.wasMutated) return void cb2(null);
-              this.assertMutationState(expectedChanges.db.wasMutated, cb2);
-            },
-            cb2 => {
-              if (!expectedChanges.db.counts) return void cb2(null);
-              const chs = origStates.counts.map((origCt, i) => newStates.counts[i] - origCt);
-              const fails = chs.reduce((memo, ch, i) => {
-                const { modelName } = expectedChanges.db.counts[i][0];
-                const query = JSON.stringify(expectedChanges.db.counts[i][1]);
-                const expectedCh = expectedChanges.db.counts[i][2];
-                if (ch === expectedCh) return memo;
-                return memo.concat(
-                  `Expected ${modelName}.count(${query}) to change by '${expectedCh}' instead of '${ch}'.`
-                );
-              }, []);
-
-              if (fails.length) return void cb2(new Error(fails.join('\n')));
-              cb2(null);
-            }
-          ], _assertChangesMainCb);
-        };
-
-        async.retry(
-          { interval: interval || 1, times: times || 1 },
-          cb2 => _assertChanges({}, cb2),
-          cb
-        );
+        async.auto({
+          newStates: cb2 => getNewStates({}, cb2),
+          _assertChanges: ['newStates', ({ newStates }, cb2) => {
+            async.retry(
+              { interval: interval || 1, times: times || 1 },
+              cb3 => _assertChanges.call(this, { expectedChanges, newStates, origStates }, cb3),
+              cb2
+            );
+          }]
+        }, cb);
       }]
     }, mainCb);
   }
