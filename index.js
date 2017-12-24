@@ -48,7 +48,7 @@ class TestHelper {
         async.parallel([
           cb2 => {
             if (!expectedChanges.db.wasMutated) return void cb2(null);
-            this.assertNotWasMutated(expectedChanges.db.wasMutated.map(([Model]) => Model), cb);
+            this.assertMutationState(expectedChanges.db.wasMutated, cb2);
           },
           cb2 => {
             if (!expectedChanges.db.counts) return void cb2(null);
@@ -71,34 +71,39 @@ class TestHelper {
     }, mainCb);
   }
 
-  assertNotWasMutated(Models, mainCb) {
-    const modelNames = Models.map(M => M.modelName);
-    const wasRemoveCalledOnModel = modelName => !!this.spies[modelName].remove.called;
-    const assertRemoveNotCalled = cb => {
-      const assertRemoveNotCalledOnModel = (modelName, cb2) => {
-        if (wasRemoveCalledOnModel(modelName)) {
-          return void cb2(new Error(`${modelName}.remove() was called.`));
-        }
-        cb2(null);
+  assertMutationState(config, mainCb) {
+    const assertModelMutationState = ([{ modelName }, assertWasMutated], cb) => {
+      let methodCalled;
+      const staticMethodSpies = this.spies[modelName];
+      const prototypeMethodSpies = this.spies[modelName].prototype;
+      const wasAnyMethodCalled = ({ isPrototype, methodSpies }) => {
+        return Object.keys(methodSpies).some(methodName => {
+          if (methodName === 'prototype') return false;
+          const spy = methodSpies[methodName];
+          if (spy.called) {
+            methodCalled = `${modelName}.${isPrototype ? 'prototype.' : ''}${methodName}() was called.`;
+            return true;
+          }
+          return false;
+        });
       };
-      async.each(modelNames, assertRemoveNotCalledOnModel, cb);
-    };
-    const assertSaveNotCalled = cb => {
-      const wasSaveCalledOnModel = modelName => this.spies[modelName].prototype.save.called;
-      const assertSaveNotCalledOnModel = (modelName, cb2) => {
-        if (wasSaveCalledOnModel(modelName)) {
-          return void cb2(new Error(`${modelName}.prototype.save() was called.`));
-        }
-        cb2(null);
-      };
-      async.each(modelNames, assertSaveNotCalledOnModel, cb);
+
+      if (assertWasMutated) {
+        if (
+          !wasAnyMethodCalled({ isPrototype: true, methodSpies: prototypeMethodSpies })
+          && !wasAnyMethodCalled({ isPrototype: false, methodSpies: staticMethodSpies })
+        ) return void cb(new Error(`No mutation method called on '${modelName}'.`));
+        cb(null);
+      } else {
+        if (
+          wasAnyMethodCalled({ isPrototype: true, methodSpies: prototypeMethodSpies })
+          || wasAnyMethodCalled({ isPrototype: false, methodSpies: staticMethodSpies })
+        ) return void cb(new Error(methodCalled));
+        cb(null);
+      }
     };
 
-    const tasks = {
-      assertRemoveNotCalled,
-      assertSaveNotCalled
-    };
-    async.parallel(tasks, mainCb);
+    async.each(config, assertModelMutationState, mainCb);
   }
 
   assertRes({ opts, payload, snapshot = {}, statusCode, url }, mainCb) {
@@ -130,7 +135,12 @@ class TestHelper {
     this.sandbox = sinon.sandbox.create();
     Models.forEach(Model => {
       this.spies[Model.modelName] = {
+        findOneAndUpdate: this.sandbox.spy(Model, 'findOneAndUpdate'),
+        findByIdAndUpdate: this.sandbox.spy(Model, 'findByIdAndUpdate'),
+        findOneAndRemove: this.sandbox.spy(Model, 'findOneAndRemove'),
+        findByIdAndRemove: this.sandbox.spy(Model, 'findByIdAndRemove'),
         remove: this.sandbox.spy(Model, 'remove'),
+        update: this.sandbox.spy(Model, 'update'),
         prototype: {
           save: this.sandbox.spy(Model.prototype, 'save')
         }

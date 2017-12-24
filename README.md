@@ -48,8 +48,8 @@ describe('module', () => {
           Todo.create(data, cb),
         expectedChanges: {
           db: {
-            // Tells tmu to assert that Todo.remove and Todo.prototype.save were not called.
-            // More methods to be added.
+            // Tells tmu to assert that Model.<mutate>
+            // or Model.prototype.<mutate> methods were not called.
             wasMutated: [[Todo, false]]
           }
         }
