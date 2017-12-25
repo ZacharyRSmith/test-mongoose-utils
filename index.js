@@ -74,16 +74,18 @@ class TestHelper {
       act: ['origStates', (results, cb) => act(cb)],
       _assertChanges: ['act', ({ origStates }, cb) => {
         const { interval, times } = expectedChanges.retry || {};
-        async.auto({
-          newStates: cb2 => getNewStates({}, cb2),
-          _assertChanges: ['newStates', ({ newStates }, cb2) => {
-            async.retry(
-              { interval: interval || 1, times: times || 1 },
-              cb3 => _assertChanges.call(this, { expectedChanges, newStates, origStates }, cb3),
-              cb2
-            );
-          }]
-        }, cb);
+        async.retry(
+          { interval: interval || 1, times: times || 1 },
+          cb2 => {
+            async.auto({
+              newStates: cb3 => getNewStates({}, cb3),
+              _assertChanges: ['newStates', ({ newStates }, cb3) => {
+                _assertChanges.call(this, { expectedChanges, newStates, origStates }, cb3);
+              }]
+            }, cb2);
+          },
+          cb
+        );
       }]
     }, mainCb);
   }
