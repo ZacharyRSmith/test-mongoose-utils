@@ -2,6 +2,7 @@
 
 const async = require('async');
 const deepPluck = require('deep-pluck-ref');
+const merge = require('lodash/merge');
 const rest = require('restler');
 const sinon = require('sinon');
 const snapshotIt = require('snap-shot-it');
@@ -40,6 +41,12 @@ function _assertChanges({ expectedChanges, newStates, origStates }, mainCb) {
 /*:: type ModelwasMutated = [MongooseModelT, bool]; */
 class TestHelper {
   constructor() {
+    this.defaults = {
+      retry: {
+        interval: null,
+        times: null
+      }
+    };
     this.sandbox;
     this.spies = {};
   }
@@ -75,7 +82,10 @@ class TestHelper {
       _assertChanges: ['act', ({ origStates }, cb) => {
         const { interval, times } = expectedChanges.retry || {};
         async.retry(
-          { interval: interval || 1, times: times || 1 },
+          {
+            interval: interval || this.defaults.retry.interval || 1,
+            times: times || this.defaults.retry.times || 1
+          },
           cb2 => {
             async.auto({
               newStates: cb3 => getNewStates({}, cb3),
@@ -173,6 +183,10 @@ class TestHelper {
 
   restore() {
     this.sandbox.restore();
+  }
+
+  setDefaults(newDefaults) {
+    merge(this.defaults, newDefaults);
   }
 }
 
