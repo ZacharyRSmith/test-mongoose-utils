@@ -51,7 +51,8 @@ class TestHelper {
     this.spies = {};
   }
 
-  assertChanges({ act, expectedChanges }/*: {
+  assertChanges({ assemble, act, expectedChanges }/*: {
+    assemble?: AsyncFunctionT,
     act: AsyncFunctionT,
     expectedChanges: {
       db: { counts: Expectation[], wasMutated: ModelwasMutated[] },
@@ -67,7 +68,7 @@ class TestHelper {
 
       async.parallel(tasks, cb);
     };
-    const getOrigStates = cb => {
+    const getOrigStates = (results, cb) => {
       const tasks = {};
       if (expectedChanges.db.counts) {
         tasks.counts = cb2 => async.map(expectedChanges.db.counts, getCt, cb2);
@@ -77,7 +78,8 @@ class TestHelper {
     };
 
     async.auto({
-      origStates: getOrigStates,
+      assemble: cb => assemble ? assemble(cb) : setImmediate(() => cb(null)),
+      origStates: ['assemble', getOrigStates],
       act: ['origStates', (results, cb) => act(cb)],
       _assertChanges: ['act', ({ origStates }, cb) => {
         const { interval, times } = expectedChanges.retry || {};
