@@ -2,6 +2,7 @@
 
 const async = require('async');
 const deepPluck = require('deep-pluck-ref');
+const get = require('lodash/get');
 const merge = require('lodash/merge');
 const rest = require('restler');
 const sinon = require('sinon');
@@ -153,7 +154,7 @@ class TestHelper {
           throw e;
         }
         if (typeof snapshot.path === 'string') {
-          const clonedData = JSON.parse(JSON.stringify(snapshot.path ? oPath(data, snapshot.path) : data));
+          const clonedData = JSON.parse(JSON.stringify(snapshot.path ? get(data, snapshot.path) : data));
           if (snapshot.ignoreProps) rmDeep(clonedData, snapshot.ignoreProps);
           snapshotIt(clonedData);
         }
